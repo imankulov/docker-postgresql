@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Create locale and setting up environment
+locale-gen en_US.UTF-8
+export LANG=en_US.UTF-8
+export DEBIAN_FRONTEND=noninteractive
+
+# Set up PostgreSQL repo
+echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+apt-key add /postgres.asc
+
+# Install packages
+apt-get -qq update
+apt-get install -y postgresql-9.3 openssh-server rsyslog
+
+# Remove auto-generated SSH keys
+rm -f /etc/ssh/ssh_host_*
+mkdir -p /var/run/sshd
+
+# Copy authorized keys file
+install -d -o root -g root -m0700 /root/.ssh
+install /authorized_keys -o root -g root -m0600  /root/.ssh/authorized_keys
+
+# fix the pam_loginuid issue. See man (8) pam_loginuid
+# andhttps://www.centos.org/forums/viewtopic.php?t=29905
+find /etc/pam.d/ -type f -exec sed -i /pam_loginuid.so/d {} \;
+
+# Open access to PostgreSQL from anywhere
+echo 'host all all 0.0.0.0/0 md5' >> /etc/postgresql/9.3/main/pg_hba.conf
+echo "listen_addresses = '*'" >> /etc/postgresql/9.3/main/postgresql.conf
+
+# Remove helper files and itself
+rm -f /postgres.sql $0

@@ -1,0 +1,26 @@
+#!/bin/bash
+# make sure OpenSSH keys exist
+/var/lib/dpkg/info/openssh-server.postinst configure
+
+# Launch services
+/usr/sbin/rsyslogd -c5
+/usr/sbin/sshd
+service postgresql start
+
+# Set up superuser PostgreSQL password
+function setup_password() {
+    test -z "$PG_PASSWORD" && {
+        logger -p local3.warning "Password for PostgreSQL is not defined"
+        return
+    }
+    logger -p local3.info "Setting up password for PostgreSQL"
+    for i in $(seq 20); do
+        su - postgres -c "psql -c \"ALTER ROLE postgres WITH PASSWORD '$PG_PASSWORD';\"" && return
+        sleep 0.5
+    done
+    logger -p local3.warning "Unable to set up password for PostgreSQL"
+}
+setup_password
+
+# Read syslog
+tail -f /var/log/syslog
